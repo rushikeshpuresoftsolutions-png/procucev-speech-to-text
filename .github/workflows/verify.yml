@@ -1,0 +1,27 @@
+name: Verify transcription studio
+on: [push, workflow_dispatch]
+permissions:
+  contents: read
+jobs:
+  integration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: {node-version: '22'}
+      - run: npm ci && npm test && npm run build
+        working-directory: frontend
+      - name: Build all three services and check volume persistence
+        run: bash scripts/verify-compose.sh
+      - name: Run API, WebSocket, and overlap tests against MySQL 8
+        run: |
+          docker compose cp backend/tests backend:/tmp/studio-tests
+          docker compose cp backend/requirements-test.txt backend:/tmp/requirements-test.txt
+          docker compose exec -T backend python -m pip install --user -r /tmp/requirements-test.txt
+          docker compose exec -T backend python -m pytest /tmp/studio-tests -q
+      - name: Show service logs on failure
+        if: failure()
+        run: docker compose logs --tail 60 backend frontend
+      - if: always()
+        run: docker compose down

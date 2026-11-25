@@ -1,0 +1,65 @@
+name: procucev-speech
+services:
+  mysql:
+    image: mysql:8.4
+    entrypoint: ["/bin/sh", "/opt/studio/mysql-entrypoint.sh"]
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-speech_to_text_db}
+      MYSQL_USER: ${MYSQL_USER:-studio}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-}
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-}
+    ports: ["127.0.0.1:3306:3306"]
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - app_secret:/run/studio
+      - ./scripts/mysql-entrypoint.sh:/opt/studio/mysql-entrypoint.sh:ro
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$${MYSQL_PASSWORD:-$$(cat /run/studio/password)}\" mysql -h 127.0.0.1 -u \"$$MYSQL_USER\" \"$$MYSQL_DATABASE\" -e 'SELECT 1'"]
+      interval: 5s
+      timeout: 4s
+      retries: 35
+      start_period: 30s
+  backend:
+    build: ./backend
+    depends_on:
+      mysql: {condition: service_healthy}
+    environment:
+      MYSQL_HOST: mysql
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-speech_to_text_db}
+      MYSQL_USER: ${MYSQL_USER:-studio}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-}
+      MYSQL_PASSWORD_FILE: /run/studio/password
+      DATABASE_URL: ${DATABASE_URL:-}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+      WHISPER_MODEL: ${WHISPER_MODEL:-small}
+      WHISPER_DEVICE: ${WHISPER_DEVICE:-cpu}
+      WHISPER_COMPUTE_TYPE: ${WHISPER_COMPUTE_TYPE:-int8}
+      WHISPER_BEAM_SIZE: ${WHISPER_BEAM_SIZE:-2}
+      WHISPER_THREADS: ${WHISPER_THREADS:-2}
+      HF_HOME: /home/studio/.cache/huggingface
+    ports: ["127.0.0.1:${BACKEND_PORT:-8000}:8000"]
+    volumes:
+      - model_cache:/home/studio/.cache/huggingface
+      - app_secret:/run/studio:ro
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+  frontend:
+    build: ./frontend
+    depends_on:
+      backend: {condition: service_healthy}
+    ports: ["127.0.0.1:${FRONTEND_PORT:-5173}:5173"]
+    environment:
+      API_PROXY_TARGET: http://backend:8000
+      VITE_API_URL: ${VITE_API_URL:-}
+      VITE_WS_URL: ${VITE_WS_URL:-}
+      __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS: ${FRONTEND_HOST:-localhost}
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+volumes:
+  mysql_data:
+  app_secret:
+  model_cache:

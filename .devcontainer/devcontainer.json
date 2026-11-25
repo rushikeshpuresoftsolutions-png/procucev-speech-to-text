@@ -1,0 +1,8 @@
+{
+  "name": "Procucev Speech Studio",
+  "image": "mcr.microsoft.com/devcontainers/base:ubuntu",
+  "features": {"ghcr.io/devcontainers/features/docker-in-docker:2": {}},
+  "forwardPorts": [5173],
+  "portsAttributes": {"5173": {"label": "Speech Studio", "onAutoForward": "openPreview"}},
+  "postStartCommand": "bash scripts/start-codespace.sh"
+}
