@@ -8,5 +8,5 @@ export default defineConfig({
     port: 5173, strictPort: true,
     proxy: { '/api': { target }, '/ws': { target, ws: true }, '/docs': { target }, '/openapi.json': { target } },
   },
-  test: { environment: 'jsdom', globals: true },
+  test: { include: ['src/**/*.test.{js,jsx}'], environment: 'jsdom', globals: true },
 })

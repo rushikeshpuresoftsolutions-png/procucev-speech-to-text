@@ -22,9 +22,17 @@ def model():
 def recognize(pcm, language):
     samples = np.frombuffer(pcm, dtype="<i2").astype(np.float32) / 32768
     with inference_lock:
-        segments, info = model().transcribe(
-            samples, language=language if language in ("hi", "en") else None,
-            task="transcribe", multilingual=language in ("auto", "mixed"),
+        recognizer = model()
+        if language in ("auto", "mixed"):
+            # Short code-switched windows can resemble unrelated languages.
+            # Choose the more likely of the two supported spoken languages.
+            _, _, probabilities = recognizer.detect_language(audio=samples)
+            language = max(
+                (pair for pair in probabilities if pair[0] in ("hi", "en")),
+                key=lambda pair: pair[1],
+            )[0]
+        segments, info = recognizer.transcribe(
+            samples, language=language, task="transcribe",
             beam_size=int(os.getenv("WHISPER_BEAM_SIZE", "2")), word_timestamps=True,
             vad_filter=True, vad_parameters={"min_silence_duration_ms": 500},
             condition_on_previous_text=False,

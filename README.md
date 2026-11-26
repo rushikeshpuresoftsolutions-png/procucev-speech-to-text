@@ -79,7 +79,7 @@ Language values are `en`, `hi`, `mixed` and `auto`. Database timestamps are UTC,
 
 Open `/ws/transcribe`. Send a JSON `start` message containing `type`, `mime` (e.g. `audio/webm;codecs=opus`) and `language`. After the `ready` status, MediaRecorder sends sequential binary chunks every 250 ms. Stop the recorder, send its last data event, then send `{"type":"stop"}` and wait for `complete`.
 
-A continuous FFmpeg decoder consumes the original container stream and emits mono 16 kHz PCM. Inference runs in a separate bounded worker. Each pass adds four seconds of audio, retains a provisional two-second tail, and keeps left context across boundaries. Timestamped words before the stable boundary become numbered `final` updates. The client appends each ID once and replaces its `partial` display. Stop flushes the remaining audio. Silence filtering, word timing and transcription-mode decoding use Faster-Whisper. Forced Hindi or English and automatic multilingual modes are available.
+A continuous FFmpeg decoder consumes the original container stream and emits mono 16 kHz PCM. Inference runs in a separate bounded worker. Each pass adds four seconds of audio, retains a provisional two-second tail, and keeps left context across boundaries. Timestamped words before the stable boundary become numbered `final` updates. The client appends each ID once and replaces its `partial` display. Stop flushes the remaining audio. Silence filtering, word timing and transcription-mode decoding use Faster-Whisper. Forced Hindi or English and automatic bilingual modes are available. Automatic modes compare Hindi and English probabilities for each window to reduce unrelated-language output.
 
 The server returns `status`, `partial`, `final` or `error` messages. It bounds audio size, session length and concurrency, and closes decoder processes on cancellation. The UI releases microphone tracks on stop, failure and navigation. The first inference can take longer while the model downloads.
 
@@ -101,6 +101,8 @@ python scripts/stream-smoke.py english.webm en
 python scripts/stream-smoke.py hindi.webm hi
 python scripts/stream-smoke.py hinglish.webm mixed
 ```
+
+The CI browser test feeds a generated English WAV through Chromium's microphone capture interface and the real model. It checks live text, save, refresh, edit, search and delete. To reproduce with the stack running, run `npx playwright install chromium` in `frontend`, then set `TEST_MIC_WAV` to an absolute path containing English speech about a team, project or meeting and run `npm run test:e2e`.
 
 For a microphone check open Live studio, choose a language, start and stop speaking, review the provisional and final words, edit the text and save. Search for it in History, edit or cancel, then test deletion with the confirmation dialog.
 

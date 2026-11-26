@@ -10,3 +10,5 @@ dist/
 *.db
 *.log
 .codex/
+test-results/
+playwright-report/

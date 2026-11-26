@@ -20,6 +20,14 @@ jobs:
           docker compose cp backend/requirements-test.txt backend:/tmp/requirements-test.txt
           docker compose exec -T backend python -m pip install --user -r /tmp/requirements-test.txt
           docker compose exec -T backend python -m pytest /tmp/studio-tests -q
+      - name: Test a real browser recording through the running Compose stack
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y espeak-ng
+          espeak-ng -v en-us -s 145 -w /tmp/studio-microphone.wav 'Our team will review the project tomorrow morning. Please send the meeting notes after the call.'
+          docker compose exec -T backend python -c 'from app.services.speech import model; model()'
+          cd frontend
+          npx playwright install --with-deps chromium
+          TEST_MIC_WAV=/tmp/studio-microphone.wav npm run test:e2e
       - name: Show service logs on failure
         if: failure()
         run: docker compose logs --tail 60 backend frontend
